@@ -1,0 +1,43 @@
+- name: vsadd-L4-bigip
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  environment:
+    F5_USER: "admin"
+    F5_PASSWORD: "JSYH@founder"
+    F5_VALIDATE_CERTS: "no"
+ 
+
+  tasks:
+  - name: Get facts from XLSX file
+    xls_to_facts:
+      src: ./JSBANK-BIGIP.xlsx
+
+  - name: set mgmt IP variable
+    set_fact: 
+      mgmt_ip: "{{ item.mgmt }}" 
+    with_items: "{{ spreadsheet_mgmt }}"
+
+  - debug:
+      msg: Server mgmt IP is {{ mgmt_ip }}
+
+  - name: Add Performace L4 servers
+    bigip_virtual_server:
+      server: "{{ mgmt_ip }}"
+      name: "{{ item.vs_name }}"
+      destination: "{{ item.vs_ip }}"
+      port: "{{ item.vs_port }}"
+      profiles: fastL4
+      irules:
+        "{{ item.irules }}"
+      pool: "{{ item.pool_name }}"
+      state: "{{ item.state }}"
+    with_items: "{{ spreadsheet_virtual_servers }}"
+
+  - name: Add Automap SNAT
+    bigip_virtual_server:
+      server: "{{ mgmt_ip }}"
+      name: "{{ item.vs_name }}"
+      snat: Automap
+    with_items: "{{ spreadsheet_virtual_servers }}"
+    when: item.automap == 'yes'

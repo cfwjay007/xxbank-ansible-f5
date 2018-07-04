@@ -1,0 +1,42 @@
+- name: creatpool-bigip
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  environment:
+    F5_USER: "admin"
+    F5_PASSWORD: "JSYH@founder"
+    F5_VALIDATE_CERTS: "no"
+ 
+
+  tasks:
+  - name: Get facts from XLSX file
+    xls_to_facts:
+      src: ./JSBANK-BIGIP.xlsx
+
+  - name: set mgmt IP variable
+    set_fact: 
+      mgmt_ip: "{{ item.mgmt }}" 
+    with_items: "{{ spreadsheet_mgmt }}"
+
+  - debug:
+      msg: Server mgmt IP is {{ mgmt_ip }}
+  
+  - name: Create pools
+    bigip_pool:
+      server: "{{ mgmt_ip }}"
+      name: "{{ item.pool_name }}"
+      lb_method: "{{ item.lb_method }}"
+      slow_ramp_time: "120"
+      monitor_type: "{{ item.monitor_type }}"
+      monitors: "{{ item.monitors }}"
+      state: "{{ item.state }}"
+    with_items: "{{ spreadsheet_pools }}"
+
+  - name: Add nodes to pools
+    bigip_pool_member:
+      server: "{{ mgmt_ip }}"
+      pool: "{{ item.pool_name }}"
+      host: "{{ item.pool_member }}"
+      port: "{{ item.pool_port }}"
+      state: "{{ item.state }}"
+    with_items: "{{ spreadsheet_pool_members }}"

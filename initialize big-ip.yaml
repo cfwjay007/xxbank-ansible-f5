@@ -1,0 +1,57 @@
+- name: initialize big-ip
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  environment:
+    F5_USER: "admin"
+    F5_PASSWORD: "admin"
+    F5_VALIDATE_CERTS: "no"
+ 
+
+  tasks:
+  - name: Get facts from XLSX file
+    xls_to_facts:
+      src: ./JSBANK-BIGIP.xlsx
+
+  - name: set mgmt IP variable
+    set_fact: 
+      mgmt_ip: "{{ item.mgmt }}" 
+    with_items: "{{ spreadsheet_mgmt }}"
+
+  - debug:
+      msg: Server mgmt IP is {{ mgmt_ip }}
+
+  - name: set hostname
+    bigip_hostname:
+      server: "{{ mgmt_ip }}"
+      hostname: "{{ item.hostname }}"
+    with_items: "{{ spreadsheet_mgmt }}"
+
+  - name: set ntp on {{ mgmt_ip }}
+    bigip_device_ntp:
+      server: "{{ mgmt_ip }}"
+      ntp_servers:
+        - "{{ item.ntp1 }}"
+        - "{{ item.ntp2 }}"
+    with_items: 
+      - "{{ spreadsheet_system_settings}}"
+
+  - name: Set timezone on {{ mgmt_ip }}
+    bigip_device_ntp:
+      server: "{{ mgmt_ip }}"
+      timezone: Asia/Shanghai
+
+  - name: Add a remote syslog server
+    bigip_remote_syslog:
+      server: "{{ mgmt_ip }}"
+      remote_host: "{{ item.syslog}}"
+    with_items: "{{ spreadsheet_system_settings}}"
+
+ # - name: set dns 
+  #  bigip_device_dns:
+   #   server: "{{ mgmt_ip }}"
+    #  name_servers: 
+     #   - "{{ item.dns1 }}"
+      #  - "{{ item.dns2 }}"
+    #with_items: 
+     # - "{{ spreadsheet_system_settings}}"
